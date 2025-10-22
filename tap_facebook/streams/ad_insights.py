@@ -67,6 +67,8 @@ EXCLUDED_FIELDS = [
 SLEEP_TIME_INCREMENT = 5
 INSIGHTS_MAX_WAIT_TO_START_SECONDS = 5 * 60
 INSIGHTS_MAX_WAIT_TO_FINISH_SECONDS = 30 * 60
+JOB_RETRY_LIMIT = 5
+JOB_RETRY_INITIAL_DELAY_SECONDS = 10
 
 
 class AdsInsightStream(Stream):
@@ -301,7 +303,31 @@ class AdsInsightStream(Stream):
                     "until": report_end.to_date_string(),
                 },
             }
-            job = self._run_job_to_completion(params)  # type: ignore[func-returns-value]
+            # Retry with exponential backoff
+            job = None
+            for attempt in range(JOB_RETRY_LIMIT):
+                try:
+                    job = self._run_job_to_completion(params)  # type: ignore[func-returns-value]
+                    break  # Success, exit retry loop
+                except RuntimeError as e:
+                    if attempt < JOB_RETRY_LIMIT - 1:
+                        # Calculate exponential backoff delay
+                        delay = JOB_RETRY_INITIAL_DELAY_SECONDS * (2 ** attempt)
+                        self.logger.warning(
+                            "Job failed on attempt %s/%s: %s. Retrying in %s seconds...",
+                            attempt + 1,
+                            JOB_RETRY_LIMIT,
+                            str(e),
+                            delay,
+                        )
+                        time.sleep(delay)
+                    else:
+                        self.logger.error(
+                            "Job failed after %s attempts. Giving up.",
+                            JOB_RETRY_LIMIT,
+                        )
+                        raise e
+
             for obj in job.get_result():
                 yield obj.export_all_data()
             # Bump to the next increment
