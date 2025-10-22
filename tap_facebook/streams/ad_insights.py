@@ -66,7 +66,7 @@ EXCLUDED_FIELDS = [
 
 SLEEP_TIME_INCREMENT = 5
 INSIGHTS_MAX_WAIT_TO_START_SECONDS = 5 * 60
-INSIGHTS_MAX_WAIT_TO_FINISH_SECONDS = 30 * 60
+INSIGHTS_MAX_WAIT_TO_FINISH_SECONDS = 60 * 60 * 60
 JOB_RETRY_LIMIT = 5
 JOB_RETRY_INITIAL_DELAY_SECONDS = 10
 
@@ -325,6 +325,3 @@ class AdsInsightStream(Stream):
 
         for obj in job.get_result():
             yield obj.export_all_data()
-        # Bump to the next increment
-        report_start = report_start.add(days=time_increment)
-        report_end = report_end.add(days=time_increment)
