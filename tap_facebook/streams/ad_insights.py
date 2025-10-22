@@ -277,59 +277,54 @@ class AdsInsightStream(Stream):
 
         time_increment = self._report_definition["time_increment_days"]
 
-        sync_end_date = pendulum.parse(  # type: ignore[union-attr]
-            self.config.get("end_date", pendulum.today().to_date_string()),
-        ).date()
-
         report_start = self._get_start_date(context)
-        report_end = report_start.add(days=time_increment)
+        report_end = pendulum.parse(self.config["end_date"]).date()
 
         columns = self._get_selected_columns()
-        while report_start <= sync_end_date:
-            params = {
-                "level": self._report_definition["level"],
-                "action_breakdowns": self._report_definition["action_breakdowns"],
-                "action_report_time": self._report_definition["action_report_time"],
-                "breakdowns": self._report_definition["breakdowns"],
-                "fields": columns,
-                "time_increment": time_increment,
-                "limit": 100,
-                "action_attribution_windows": [
-                    self._report_definition["action_attribution_windows_view"],
-                    self._report_definition["action_attribution_windows_click"],
-                ],
-                "time_range": {
-                    "since": report_start.to_date_string(),
-                    "until": report_end.to_date_string(),
-                },
-            }
-            # Retry with exponential backoff
-            job = None
-            for attempt in range(JOB_RETRY_LIMIT):
-                try:
-                    job = self._run_job_to_completion(params)  # type: ignore[func-returns-value]
-                    break  # Success, exit retry loop
-                except RuntimeError as e:
-                    if attempt < JOB_RETRY_LIMIT - 1:
-                        # Calculate exponential backoff delay
-                        delay = JOB_RETRY_INITIAL_DELAY_SECONDS * (2 ** attempt)
-                        self.logger.warning(
-                            "Job failed on attempt %s/%s: %s. Retrying in %s seconds...",
-                            attempt + 1,
-                            JOB_RETRY_LIMIT,
-                            str(e),
-                            delay,
-                        )
-                        time.sleep(delay)
-                    else:
-                        self.logger.error(
-                            "Job failed after %s attempts. Giving up.",
-                            JOB_RETRY_LIMIT,
-                        )
-                        raise e
+        params = {
+            "level": self._report_definition["level"],
+            "action_breakdowns": self._report_definition["action_breakdowns"],
+            "action_report_time": self._report_definition["action_report_time"],
+            "breakdowns": self._report_definition["breakdowns"],
+            "fields": columns,
+            "time_increment": time_increment,
+            "limit": 100,
+            "action_attribution_windows": [
+                self._report_definition["action_attribution_windows_view"],
+                self._report_definition["action_attribution_windows_click"],
+            ],
+            "time_range": {
+                "since": report_start.to_date_string(),
+                "until": report_end.to_date_string(),
+            },
+        }
+        # Retry with exponential backoff
+        job = None
+        for attempt in range(JOB_RETRY_LIMIT):
+            try:
+                job = self._run_job_to_completion(params)  # type: ignore[func-returns-value]
+                break  # Success, exit retry loop
+            except RuntimeError as e:
+                if attempt < JOB_RETRY_LIMIT - 1:
+                    # Calculate exponential backoff delay
+                    delay = JOB_RETRY_INITIAL_DELAY_SECONDS * (2 ** attempt)
+                    self.logger.warning(
+                        "Job failed on attempt %s/%s: %s. Retrying in %s seconds...",
+                        attempt + 1,
+                        JOB_RETRY_LIMIT,
+                        str(e),
+                        delay,
+                    )
+                    time.sleep(delay)
+                else:
+                    self.logger.error(
+                        "Job failed after %s attempts. Giving up.",
+                        JOB_RETRY_LIMIT,
+                    )
+                    raise e
 
-            for obj in job.get_result():
-                yield obj.export_all_data()
-            # Bump to the next increment
-            report_start = report_start.add(days=time_increment)
-            report_end = report_end.add(days=time_increment)
+        for obj in job.get_result():
+            yield obj.export_all_data()
+        # Bump to the next increment
+        report_start = report_start.add(days=time_increment)
+        report_end = report_end.add(days=time_increment)
