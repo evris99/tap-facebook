@@ -33,7 +33,8 @@ class CreativeStream(FacebookStream):
         "body",
         "name",
         "status",
-        "title"
+        "title",
+        "call_to_action_type"
     ]
 
     name = "creatives"
