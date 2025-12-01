@@ -27,7 +27,7 @@ class AdLabelsStream(FacebookStream):
 
     name = "adlabels"
     path = f"/adlabels?fields={columns}"
-    primary_keys = ["id", "updated_time"]  # noqa: RUF012
+    primary_keys = ["id"]  # noqa: RUF012
     tap_stream_id = "adlabels"
     replication_method = REPLICATION_INCREMENTAL
     replication_key = "updated_time"

@@ -41,6 +41,7 @@ class CreativeStream(FacebookStream):
 
     name = "creatives"
     path = f"/adcreatives?fields={columns}"
+    primary_keys = ["id"]  # noqa: RUF012
     tap_stream_id = "creatives"
     replication_method = REPLICATION_INCREMENTAL
     replication_key = "id"
