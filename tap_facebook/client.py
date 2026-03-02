@@ -134,6 +134,17 @@ class FacebookStream(RESTStream):
             )
             raise RetriableAPIError(msg, response)
 
+        # There is a bug in the API where it returns empty data sometimes
+        # Check if response has empty data array
+        try:
+            response_json = response.json()
+            if "data" in response_json and isinstance(response_json["data"], list) and len(response_json["data"]) == 0:
+                msg = f"Empty data array returned for path: {full_path}"
+                raise RetriableAPIError(msg, response)
+        except (ValueError, KeyError):
+            # If response is not JSON or doesn't have expected structure, continue
+            pass
+
     def backoff_max_tries(self) -> int:
         """The number of attempts before giving up when retrying requests.
 
