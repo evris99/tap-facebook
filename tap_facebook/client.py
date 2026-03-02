@@ -8,6 +8,7 @@ import typing as t
 from http import HTTPStatus
 from urllib.parse import urlparse
 
+import backoff
 import pendulum
 from singer_sdk.authenticators import BearerTokenAuthenticator
 from singer_sdk.exceptions import FatalAPIError, RetriableAPIError
@@ -145,19 +146,8 @@ class FacebookStream(RESTStream):
             # If response is not JSON or doesn't have expected structure, continue
             pass
 
-    def backoff_wait_generator(self) -> t.Callable[..., t.Generator[float, None, None]]:
-        """Return a wait generator with linear backoff increasing by 5 seconds each try.
-
-        Returns:
-            A callable that returns a generator yielding wait times.
-        """
-        def linear_backoff() -> t.Generator[float, None, None]:
-            """Generator for linear backoff increasing by 5 seconds."""
-            n = 0
-            while True:
-                yield (n + 1) * 5  # 5, 10, 15, 20, etc.
-                n += 1
-        return linear_backoff
+    def backoff_wait_generator(self) -> t.Callable[..., t.Generator[float, t.Any, None]]:
+        return backoff.constant(interval=10)
 
     def backoff_max_tries(self) -> int:
         """The number of attempts before giving up when retrying requests.
