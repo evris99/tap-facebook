@@ -38,6 +38,15 @@ class FacebookStream(RESTStream):
     tolerated_http_errors: list[int] = []  # noqa: RUF012
 
     @property
+    def page_limit(self) -> int:
+        """Return the page limit for API requests.
+
+        Returns:
+            int: The number of records to fetch per page (default: 25).
+        """
+        return 25
+
+    @property
     def authenticator(self) -> BearerTokenAuthenticator:
         """Return a new authenticator object.
 
@@ -86,7 +95,7 @@ class FacebookStream(RESTStream):
         Returns:
             A dictionary of URL query parameters.
         """
-        params: dict = {"limit": 25}
+        params: dict = {"limit": self.page_limit}
         if next_page_token is not None:
             params["after"] = next_page_token
         if self.replication_key:
@@ -180,7 +189,7 @@ class IncrementalFacebookStream(FacebookStream, metaclass=abc.ABCMeta):
         Returns:
             A dictionary of URL query parameters.
         """
-        params: dict = {"limit": 25}
+        params: dict = {"limit": self.page_limit}
         if next_page_token is not None:
             params["after"] = next_page_token
         if self.replication_key:
