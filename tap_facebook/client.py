@@ -145,6 +145,20 @@ class FacebookStream(RESTStream):
             # If response is not JSON or doesn't have expected structure, continue
             pass
 
+    def backoff_wait_generator(self) -> t.Callable[..., t.Generator[float, None, None]]:
+        """Return a wait generator with linear backoff increasing by 5 seconds each try.
+
+        Returns:
+            A callable that returns a generator yielding wait times.
+        """
+        def linear_backoff() -> t.Generator[float, None, None]:
+            """Generator for linear backoff increasing by 5 seconds."""
+            n = 0
+            while True:
+                yield (n + 1) * 5  # 5, 10, 15, 20, etc.
+                n += 1
+        return linear_backoff
+
     def backoff_max_tries(self) -> int:
         """The number of attempts before giving up when retrying requests.
 
@@ -153,7 +167,7 @@ class FacebookStream(RESTStream):
         Returns:
             int: limit
         """
-        return 20
+        return 100 
 
 
 class IncrementalFacebookStream(FacebookStream, metaclass=abc.ABCMeta):
