@@ -48,12 +48,7 @@ class CreativeStream(FacebookStream):
 
     @property
     def page_limit(self) -> int:
-        """Return the page limit for creative API requests.
-
-        Returns:
-            int: The number of records to fetch per page (10 for creatives).
-        """
-        return 10
+        return 5
 
     schema = PropertiesList(
         Property("id", StringType),
