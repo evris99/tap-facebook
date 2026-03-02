@@ -31,7 +31,6 @@ class CreativeStream(FacebookStream):
         "id",
         "account_id",
         "video_id",
-        "body",
         "name",
         "status",
         "title",
