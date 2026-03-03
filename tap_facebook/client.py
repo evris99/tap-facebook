@@ -58,6 +58,38 @@ class FacebookStream(RESTStream):
             token=self.config["access_token"],
         )
 
+    def parse_response(self, response: requests.Response) -> t.Iterable[dict]:
+        """Parse the response and yield records.
+
+        Continues to next page even if current page is empty, as long as
+        there's a next page cursor.
+
+        Args:
+            response: The HTTP ``requests.Response`` object.
+
+        Yields:
+            One record at a time.
+        """
+        response_json = response.json()
+        records = list(extract_jsonpath(self.records_jsonpath, response_json))
+
+        # Log if empty page but has next cursor
+        if not records:
+            has_next_page = (
+                "paging" in response_json
+                and "cursors" in response_json["paging"]
+                and "after" in response_json["paging"]["cursors"]
+                and response_json["paging"]["cursors"]["after"]
+            )
+            if has_next_page:
+                next_cursor = response_json["paging"]["cursors"]["after"]
+                self.logger.info(
+                    f"Empty page received but next cursor exists: {next_cursor}, continuing pagination"
+                )
+
+        for record in records:
+            yield record
+
     def get_next_page_token(
         self,
         response: requests.Response,
@@ -148,9 +180,21 @@ class FacebookStream(RESTStream):
         # Check if response has empty data array
         try:
             response_json = response.json()
-            if "data" in response_json and isinstance(response_json["data"], list) and len(response_json["data"]) == 0:
-                msg = f"Empty data array returned for path: {full_path}"
+            # Check if there's a next page by looking for the after cursor
+            has_next_page = (
+                "paging" in response_json
+                and "cursors" in response_json["paging"]
+                and "after" in response_json["paging"]["cursors"]
+                and response_json["paging"]["cursors"]["after"]
+            )
+
+            has_empty_data = "data" in response_json and isinstance(response_json["data"], list) and len(response_json["data"]) == 0
+            if has_empty_data and not has_next_page:
+                msg = f"Empty data array with no next cursor returned for path: {full_path}."
                 raise RetriableAPIError(msg, response)
+
+            if has_empty_data and has_next_page:
+                pass
         except (ValueError, KeyError):
             # If response is not JSON or doesn't have expected structure, continue
             pass
