@@ -84,7 +84,7 @@ class FacebookStream(RESTStream):
             if has_next_page:
                 next_cursor = response_json["paging"]["cursors"]["after"]
                 self.logger.info(
-                    f"Empty page received but next cursor exists: {next_cursor}, continuing pagination"
+                    f"Empty page received but next cursor exists: {next_cursor}, continuing pagination. Response: {response_json}"
                 )
 
         for record in records:
@@ -181,20 +181,12 @@ class FacebookStream(RESTStream):
         try:
             response_json = response.json()
             # Check if there's a next page by looking for the after cursor
-            has_next_page = (
-                "paging" in response_json
-                and "cursors" in response_json["paging"]
-                and "after" in response_json["paging"]["cursors"]
-                and response_json["paging"]["cursors"]["after"]
-            )
+            has_paging_section = "paging" in response_json
 
             has_empty_data = "data" in response_json and isinstance(response_json["data"], list) and len(response_json["data"]) == 0
-            if has_empty_data and not has_next_page:
-                msg = f"Empty data array with no next cursor returned for path: {full_path}."
+            if has_empty_data and not has_paging_section:
+                msg = f"Empty data array with no paging returned for path: {full_path}. Response: {response_json}"
                 raise RetriableAPIError(msg, response)
-
-            if has_empty_data and has_next_page:
-                pass
         except (ValueError, KeyError):
             # If response is not JSON or doesn't have expected structure, continue
             pass
