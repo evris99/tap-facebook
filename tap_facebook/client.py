@@ -32,6 +32,7 @@ class FacebookStream(RESTStream):
         account_id: str = self.config["account_id"]
         return f"https://graph.facebook.com/{version}/act_{account_id}"
 
+    empty_next_page_token_count = 0
     records_jsonpath = "$.data[*]"  # Or override `parse_response`.
     next_page_token_jsonpath = "$.paging.cursors.after"  # noqa: S105
 
@@ -57,38 +58,6 @@ class FacebookStream(RESTStream):
             self,
             token=self.config["access_token"],
         )
-
-    def parse_response(self, response: requests.Response) -> t.Iterable[dict]:
-        """Parse the response and yield records.
-
-        Continues to next page even if current page is empty, as long as
-        there's a next page cursor.
-
-        Args:
-            response: The HTTP ``requests.Response`` object.
-
-        Yields:
-            One record at a time.
-        """
-        response_json = response.json()
-        records = list(extract_jsonpath(self.records_jsonpath, response_json))
-
-        # Log if empty page but has next cursor
-        if not records:
-            has_next_page = (
-                "paging" in response_json
-                and "cursors" in response_json["paging"]
-                and "after" in response_json["paging"]["cursors"]
-                and response_json["paging"]["cursors"]["after"]
-            )
-            if has_next_page:
-                next_cursor = response_json["paging"]["cursors"]["after"]
-                self.logger.info(
-                    f"Empty page received but next cursor exists: {next_cursor}, continuing pagination. Response: {response_json}"
-                )
-
-        for record in records:
-            yield record
 
     def get_next_page_token(
         self,
@@ -180,13 +149,14 @@ class FacebookStream(RESTStream):
         # Check if response has empty data array
         try:
             response_json = response.json()
-            # Check if there's a next page by looking for the after cursor
-            has_paging_section = "paging" in response_json
-
             has_empty_data = "data" in response_json and isinstance(response_json["data"], list) and len(response_json["data"]) == 0
-            if has_empty_data and not has_paging_section:
-                msg = f"Empty data array with no paging returned for path: {full_path}. Response: {response_json}"
-                raise RetriableAPIError(msg, response)
+            if has_empty_data:
+                self.empty_next_page_token_count = self.empty_next_page_token_count + 1
+                if self.empty_next_page_token_count < 10:
+                    msg = f"Empty data array with no paging returned for path: {full_path}. Empty page count: {self.empty_next_page_token_count}."
+                    raise RetriableAPIError(msg, response)
+            else:
+                self.empty_next_page_token_count = 0
         except (ValueError, KeyError):
             # If response is not JSON or doesn't have expected structure, continue
             pass
