@@ -34,6 +34,7 @@ class CreativeStream(FacebookStream):
         "name",
         "status",
         "title",
+        "body",
         "call_to_action_type",
         "object_type"
     ]
@@ -45,9 +46,9 @@ class CreativeStream(FacebookStream):
     replication_method = REPLICATION_INCREMENTAL
     replication_key = "id"
 
-    @property
-    def page_limit(self) -> int:
-        return 5
+    # @property
+    # def page_limit(self) -> int:
+    #     return 5
 
     schema = PropertiesList(
         Property("id", StringType),
