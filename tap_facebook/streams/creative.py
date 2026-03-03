@@ -29,14 +29,14 @@ class CreativeStream(FacebookStream):
 
     columns = [  # noqa: RUF012
         "id",
-        "account_id",
-        "video_id",
-        "name",
-        "status",
-        "title",
-        "body",
-        "call_to_action_type",
-        "object_type"
+        # "account_id",
+        # "video_id",
+        # "name",
+        # "status",
+        # "title",
+        # "body",
+        # "call_to_action_type",
+        # "object_type"
     ]
 
     name = "creatives"
