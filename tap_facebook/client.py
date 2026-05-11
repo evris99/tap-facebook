@@ -182,4 +182,6 @@ class IncrementalFacebookStream(FacebookStream, metaclass=abc.ABCMeta):
                 ],
             )
 
+        self.logger.info("timestamp params")
+        self.logger.info(params)
         return params
